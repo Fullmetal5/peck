@@ -27,6 +27,8 @@ int check_flag_64(uint64_t flags, uint64_t flagToCheck){
     return (flags & flagToCheck) == flagToCheck;
 }
 
+//The documentation only uses RVAs relative to the Base Image address so we don't account for it here.
+//This should not be used to resolve real memory address of the program!
 uint64_t resolveRVA(SectionTableNode *root, uint64_t address){
     SectionTableNode *current = root;
     while (current != 0){
