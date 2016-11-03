@@ -41,6 +41,20 @@ uint64_t resolveRVA(SectionTableNode *root, uint64_t address){
     return 0;
 }
 
+//Use this for resolving real memory addresses!
+uint64_t resolveRealMemoryAddress(PE32_Header *extractedPE32_Header, SectionTableNode *root, uint64_t address){
+    address = address - extractedPE32_Header->imageBase;
+    SectionTableNode *current = root;
+    while (current != 0){
+        if (current->Section_Header.VirtualAddress < address < current->Section_Header.VirtualSize){
+            return address - current->Section_Header.VirtualAddress + current->Section_Header.PointerToRawData;
+        }
+        current = current->next;
+    }
+    printf("WARNING: Couldn't resolve real memory address 0x%.16X\n", address);
+    return 0;
+}
+
 uint64_t resolveEntryPoint(PE32_Header *extractedPE32_Header, SectionTableNode *root){
     return resolveRVA(root, extractedPE32_Header->addressOfEntryPoint);
 }
