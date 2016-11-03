@@ -51,7 +51,7 @@ uint64_t resolveRealMemoryAddress(PE32_Header *extractedPE32_Header, SectionTabl
         }
         current = current->next;
     }
-    printf("WARNING: Couldn't resolve real memory address 0x%.16X\n", address);
+    printf("WARNING: Couldn't resolve real memory address 0x%.16X\n", address + extractedPE32_Header->imageBase);
     return 0;
 }
 
