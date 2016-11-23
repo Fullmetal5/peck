@@ -1,3 +1,6 @@
+#ifndef _DOS_H_
+#define _DOS_H_
+
 typedef struct _DOS_Header {
     char signature[2];
     uint16_t lastPage;
@@ -24,3 +27,5 @@ typedef struct _DOS_Reloc {
     uint16_t offset;
     uint16_t segment;
 } __attribute__((packed)) DOS_Reloc;
+
+#endif

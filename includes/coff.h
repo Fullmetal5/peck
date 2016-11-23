@@ -1,3 +1,6 @@
+#ifndef _COFF_H_
+#define _COFF_H_
+
 typedef struct _COFF_Header {
     uint16_t machine;
     uint16_t numberOfSections;
@@ -54,3 +57,5 @@ uint16_t IMAGE_FILE_DLL                     = 0x2000;
 uint16_t IMAGE_FILE_UP_SYSTEM_ONLY          = 0x4000;
 uint16_t IMAGE_FILE_FILE_BYTES_REVERSED_HI  = 0x8000;
 //End Characteristics
+
+#endif

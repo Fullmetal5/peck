@@ -2,14 +2,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
-#include "includes/dos.h"
-#include "includes/pe.h"
-
-typedef struct _SectionTableNode {
-    SECTION_TABLE Section_Header;
-    struct SectionTableNode *next;
-} __attribute__((packed)) SectionTableNode;
+#include "includes/pec.h"
 
 int check_flag_8(uint8_t flags, uint8_t flagToCheck){
     return (flags & flagToCheck) == flagToCheck;
@@ -59,53 +52,55 @@ uint64_t resolveEntryPoint(PE32_Header *extractedPE32_Header, SectionTableNode *
     return resolveRVA(root, extractedPE32_Header->addressOfEntryPoint);
 }
 
-DOS_Header* getDOS_Header(FILE *PE_FILE){
+void getDOS_Header(PEC_FILE *thePEC_FILE){
     DOS_Header *extractedDOS_Header = malloc(sizeof(DOS_Header));
-    fseek(PE_FILE, 0, SEEK_SET);
-    fread(extractedDOS_Header, 1, sizeof(DOS_Header), PE_FILE);
-    return extractedDOS_Header;
+    fseek(thePEC_FILE->RawFile, 0, SEEK_SET);
+    fread(extractedDOS_Header, 1, sizeof(DOS_Header), thePEC_FILE->RawFile);
+    thePEC_FILE->extractedDOS_Header = extractedDOS_Header;
 }
 
-PE_Header* getPE_Header(FILE *PE_FILE, DOS_Header *extractedDOS_Header){
+void getPE_Header(PEC_FILE *thePEC_FILE){
     PE_Header *extractedPE_Header = malloc(sizeof(PE_Header));
-    fseek(PE_FILE, extractedDOS_Header->e_lfanew, SEEK_SET);
-    fread(extractedPE_Header, 1, sizeof(PE_Header), PE_FILE);
-    return extractedPE_Header;
+    fseek(thePEC_FILE->RawFile, thePEC_FILE->extractedDOS_Header->e_lfanew, SEEK_SET);
+    fread(extractedPE_Header, 1, sizeof(PE_Header), thePEC_FILE->RawFile);
+    thePEC_FILE->extractedPE_Header = extractedPE_Header;
 }
 
-PE32_Header* getPE32_Header(FILE *PE_FILE, DOS_Header *extractedDOS_Header){
+void getPE32_Header(PEC_FILE *thePEC_FILE){
     PE32_Header *extractedPE32_Header = malloc(sizeof(PE32_Header));
-    fseek(PE_FILE, (extractedDOS_Header->e_lfanew + sizeof(PE_Header)), SEEK_SET);
-    fread(extractedPE32_Header, 1, sizeof(PE32_Header), PE_FILE);
-    return extractedPE32_Header;
+    fseek(thePEC_FILE->RawFile, (thePEC_FILE->extractedDOS_Header->e_lfanew + sizeof(PE_Header)), SEEK_SET);
+    fread(extractedPE32_Header, 1, sizeof(PE32_Header), thePEC_FILE->RawFile);
+    thePEC_FILE->extractedPE32_Header = extractedPE32_Header;
 }
 
-Export_Directory_Table* getExportDirectoryTable(FILE *PE_FILE, SectionTableNode *root, PE32_Header *extractedPE32_Header){
+void getExportDirectoryTable(PEC_FILE *thePEC_FILE){
     Export_Directory_Table *extractedExportDirectoryTable = malloc(sizeof(Export_Directory_Table));
-    fseek(PE_FILE, resolveRVA(root, extractedPE32_Header->dataDirectories.exportTable.VirtualAddress), SEEK_SET);
-    fread(extractedExportDirectoryTable, 1, sizeof(Export_Directory_Table), PE_FILE);
-    return extractedExportDirectoryTable;
+    fseek(thePEC_FILE->RawFile, resolveRVA(thePEC_FILE->root, thePEC_FILE->extractedPE32_Header->dataDirectories.exportTable.VirtualAddress), SEEK_SET);
+    fread(extractedExportDirectoryTable, 1, sizeof(Export_Directory_Table), thePEC_FILE->RawFile);
+    thePEC_FILE->extractedExport_Directory_Table = extractedExportDirectoryTable;
 }
 
-SectionTableNode* constructSectionTableLinkedList(FILE *PE_FILE, DOS_Header *extractedDOS_Header, PE_Header *extractedPE_Header){
-    if (extractedPE_Header->PE_COFF_Header.numberOfSections == 0){
-        return NULL;
+void constructSectionTableLinkedList(PEC_FILE *thePEC_FILE){
+    if (thePEC_FILE->extractedPE_Header->PE_COFF_Header.numberOfSections == 0){
+        thePEC_FILE->root = NULL;
+        return;
     }
     SectionTableNode *root = malloc(sizeof(SectionTableNode));
     SectionTableNode *current = root;
     root->next = 0;
-    fseek(PE_FILE, (extractedDOS_Header->e_lfanew + sizeof(PE_Header) + extractedPE_Header->PE_COFF_Header.sizeOfOptionalHeader), SEEK_SET);
-    fread(&root->Section_Header, 1, sizeof(SECTION_TABLE), PE_FILE);
-    if (extractedPE_Header->PE_COFF_Header.numberOfSections == 1){
-        return root;
+    fseek(thePEC_FILE->RawFile, (thePEC_FILE->extractedDOS_Header->e_lfanew + sizeof(PE_Header) + thePEC_FILE->extractedPE_Header->PE_COFF_Header.sizeOfOptionalHeader), SEEK_SET);
+    fread(&root->Section_Header, 1, sizeof(SECTION_TABLE), thePEC_FILE->RawFile);
+    if (thePEC_FILE->extractedPE_Header->PE_COFF_Header.numberOfSections == 1){
+        thePEC_FILE->root = root;
+        return;
     }
-    for (int i = 1; i <= extractedPE_Header->PE_COFF_Header.numberOfSections; i++){
+    for (int i = 1; i <= thePEC_FILE->extractedPE_Header->PE_COFF_Header.numberOfSections; i++){
         current->next = malloc(sizeof(SectionTableNode));
         current = current->next;
         current->next = 0;
-        fread(&current->Section_Header, 1, sizeof(SECTION_TABLE), PE_FILE);
+        fread(&current->Section_Header, 1, sizeof(SECTION_TABLE), thePEC_FILE->RawFile);
     }
-    return root;
+    thePEC_FILE->root = root;
 }
 
 void freeSectionTableLinkedList(SectionTableNode *root){
@@ -150,211 +145,69 @@ void dumpSections(SectionTableNode *root){
     }
 }
 
+//Does everything BUT run close on the file. To properly free everything make sure you close the file before passing the PEC_FILE to this function.
+void freePEC_FILE(PEC_FILE *thePEC_FILE){
+    if (thePEC_FILE == NULL){
+        return;
+    }
+    if (thePEC_FILE->extractedDOS_Header){
+        free(thePEC_FILE->extractedDOS_Header);
+        thePEC_FILE->extractedDOS_Header = NULL;
+    }
+    if (thePEC_FILE->extractedPE_Header){
+        free(thePEC_FILE->extractedPE_Header);
+        thePEC_FILE->extractedPE_Header = NULL;
+    }
+    if (thePEC_FILE->extractedPE32_Header){
+        free(thePEC_FILE->extractedPE32_Header);
+        thePEC_FILE->extractedPE32_Header = NULL;
+    }
+    if (thePEC_FILE->extractedExport_Directory_Table){
+        free(thePEC_FILE->extractedExport_Directory_Table);
+        thePEC_FILE->extractedExport_Directory_Table = NULL;
+    }
+    if (thePEC_FILE->root){
+        freeSectionTableLinkedList(thePEC_FILE->root);
+        thePEC_FILE->root = NULL;
+    }
+    free(thePEC_FILE);
+    thePEC_FILE = NULL;
+}
+
 int main(int argc, char *argv[]){
     if (argc != 2){
         return 0;
     }
     printf("Analysing %s\n", argv[1]);
     FILE *pe = fopen(argv[1], "r");
-    DOS_Header *myDOSHeader = getDOS_Header(pe);
-
-    /*printf("----------DOS HEADER----------\n");
-    printf("Signature: %c%c\n", myDOSHeader->signature[0], myDOSHeader->signature[1]);
-    printf("Bytes used on last page: 0x%.4X\n", myDOSHeader->lastPage);
-    printf("Pages: 0x%.4X\n", myDOSHeader->pages);
-    printf("Number of relocation items: 0x%.4X\n", myDOSHeader->relocationItems);
-    printf("Header size: 0x%.4X\n", myDOSHeader->headerSize);
-    printf("Minimum Allocation: 0x%.4X\n", myDOSHeader->minAlloc);
-    printf("Maximum Allocation: 0x%.4X\n", myDOSHeader->maxAlloc);
-    printf("SS: 0x%.4X\n", myDOSHeader->SS);
-    printf("SP: 0x%.4X\n", myDOSHeader->SP);
-    printf("Checksum: 0x%.4X\n", myDOSHeader->checksum);
-    printf("IP: 0x%.4X\n", myDOSHeader->IP);
-    printf("CS: 0x%.4X\n", myDOSHeader->CS);
-    printf("Relocation Table: 0x%.4X\n", myDOSHeader->relocationTable);
-    printf("Overlay: 0x%.4X\n", myDOSHeader->overlay);
-    printf("e_lfanew: 0x%.8X\n", myDOSHeader->e_lfanew);*/
-    
-    PE_Header *myPEHeader = getPE_Header(pe, myDOSHeader);
-
-    /*printf("----------PE HEADER----------\n");
-    printf("Signature: %c%c%c%c\n", myPEHeader->signature[0], myPEHeader->signature[1], myPEHeader->signature[2], myPEHeader->signature[3]);
-    printf("Machine: 0x%.4X\n", myPEHeader->PE_COFF_Header.machine);
-    printf("Number of Sections: 0x%.4X\n", myPEHeader->PE_COFF_Header.numberOfSections);
-    printf("Time Date Stamp: 0x%.8X\n", myPEHeader->PE_COFF_Header.timeDateStamp);
-    printf("Pointer to Symbol Table: 0x%.8X\n", myPEHeader->PE_COFF_Header.pointerToSymbolTable);
-    printf("Number of Symbols: 0x%.8X\n", myPEHeader->PE_COFF_Header.numberOfSymbols);
-    printf("Size of Optional Header: 0x%.4X\n", myPEHeader->PE_COFF_Header.sizeOfOptionalHeader);
-    printf("Characteristics: 0x%.4X\n", myPEHeader->PE_COFF_Header.characteristics);
-    printf("Characteristics: ");
-    if (check_flag_16(myPEHeader->PE_COFF_Header.characteristics, IMAGE_FILE_RELOCS_STRIPPER)){
-        printf("IMAGE_FILE_RELOCS_STRIPPER, ");
-    }
-    if (check_flag_16(myPEHeader->PE_COFF_Header.characteristics, IMAGE_FILE_EXECUTABLE_IMAGE)){
-        printf("IMAGE_FILE_EXECUTABLE_IMAGE, ");
-    }
-    if (check_flag_16(myPEHeader->PE_COFF_Header.characteristics, IMAGE_FILE_LINE_NUMS_STRIPPED)){
-        printf("IMAGE_FILE_LINE_NUMS_STRIPPED, ");
-    }
-    if (check_flag_16(myPEHeader->PE_COFF_Header.characteristics, IMAGE_FILE_LOCAL_SYMS_STRIPPED)){
-        printf("IMAGE_FILE_LOCAL_SYMS_STRIPPED, ");
-    }
-    if (check_flag_16(myPEHeader->PE_COFF_Header.characteristics, IMAGE_FILE_AGGRESSIVE_WS_TRIM)){
-        printf("IMAGE_FILE_AGGRESSIVE_WS_TRIM, ");
-    }
-    if (check_flag_16(myPEHeader->PE_COFF_Header.characteristics, IMAGE_FILE_LARGE_ADDRESS_AWARE)){
-        printf("IMAGE_FILE_LARGE_ADDRESS_AWARE, ");
-    }
-    if (check_flag_16(myPEHeader->PE_COFF_Header.characteristics, IMAGE_FILE_BYTES_REVERSED_LO)){
-        printf("IMAGE_FILE_BYTES_REVERSED_LO, ");
-    }
-    if (check_flag_16(myPEHeader->PE_COFF_Header.characteristics, IMAGE_FILE_32BIT_MACHINE)){
-        printf("IMAGE_FILE_32BIT_MACHINE, ");
-    }
-    if (check_flag_16(myPEHeader->PE_COFF_Header.characteristics, IMAGE_FILE_DEBUG_STRIPPED)){
-        printf("IMAGE_FILE_DEBUG_STRIPPED, ");
-    }
-    if (check_flag_16(myPEHeader->PE_COFF_Header.characteristics, IMAGE_FILE_REMOVABLE_RUN_FROM_SWAP)){
-        printf("IMAGE_FILE_REMOVABLE_RUN_FROM_SWAP, ");
-    }
-    if (check_flag_16(myPEHeader->PE_COFF_Header.characteristics, IMAGE_FILE_NET_RUN_FROM_SWAP)){
-        printf("IMAGE_FILE_NET_RUN_FROM_SWAP, ");
-    }
-    if (check_flag_16(myPEHeader->PE_COFF_Header.characteristics, IMAGE_FILE_SYSTEM)){
-        printf("IMAGE_FILE_SYSTEM, ");
-    }
-    if (check_flag_16(myPEHeader->PE_COFF_Header.characteristics, IMAGE_FILE_DLL)){
-        printf("IMAGE_FILE_DLL, ");
-    }
-    if (check_flag_16(myPEHeader->PE_COFF_Header.characteristics, IMAGE_FILE_UP_SYSTEM_ONLY)){
-        printf("IMAGE_FILE_UP_SYSTEM_ONLY, ");
-    }
-    if (check_flag_16(myPEHeader->PE_COFF_Header.characteristics, IMAGE_FILE_FILE_BYTES_REVERSED_HI)){
-        printf("IMAGE_FILE_FILE_BYTES_REVERSED_HI, ");
-    }
-    printf("\n");
-    printf("----------OPTIONAL HEADER----------\n");*/
-    uint16_t magic;
+    //The reason this is being allocated with calloc is because there are alot of pointers in this struct and having them already set to 0 makes it way easier then having to initialize all of them all to 0 and makes it break less when a new pointer is added.
+    PEC_FILE *thePEC_FILE = calloc(sizeof(PEC_FILE), 1);
+    thePEC_FILE->RawFile = pe;
+    getDOS_Header(thePEC_FILE);
+    getPE_Header(thePEC_FILE);
+    uint16_t magic = 0x0000;
     fread(&magic, 1, 2, pe);
-    //printf("Magic: 0x%.4X\n", magic);
     fseek(pe, -2, SEEK_CUR);
     if (magic == 0x010B){
-        //printf("Found PE32\n");
-        PE32_Header *myPE32Header = getPE32_Header(pe, myDOSHeader);
-        /*printf("Magic: 0x%.4X\n", myPE32Header->magic);
-        printf("Major Linker Version: 0x%.2X\n", myPE32Header->majorLinkerVersion);
-        printf("Minor Linker Version: 0x%.2X\n", myPE32Header->minorLinkerVersion);
-        printf("Size of Code: 0x%.8X\n", myPE32Header->sizeOfCode);
-        printf("Size of Uninitialized Data: 0x%.8X\n", myPE32Header->sizeOfUninitializedData);
-        printf("Address of Entry Point: 0x%.8X\n", myPE32Header->addressOfEntryPoint);
-        printf("Base of Code 0x%.8X\n", myPE32Header->baseOfCode);
-        printf("Base of Data: 0x%.8X\n", myPE32Header->baseOfData);
-        printf("Image Base: 0x%.8X\n", myPE32Header->imageBase);
-        printf("Section Alignment: 0x%.8X\n", myPE32Header->sectionAlignment);
-        printf("File Alignment: 0x%.8X\n", myPE32Header->fileAlignment);
-        printf("Major Operating System Version: 0x%.4X\n", myPE32Header->majorOperatingSystemVersion);
-        printf("Minor Operating System Version: 0x%.4X\n", myPE32Header->minorOperatingSystemVersion);
-        printf("Major Image Version: 0x%.4X\n", myPE32Header->majorImageVersion);
-        printf("Minor Image Version: 0x%.4X\n", myPE32Header->minorImageVersion);
-        printf("Major Subsystem Version: 0x%.4X\n", myPE32Header->majorSubsystemVersion);
-        printf("Minor Subsystem Version: 0x%.4X\n", myPE32Header->minorSubsystemVersion);
-        printf("Win32 Verison Value: 0x%.8X\n", myPE32Header->win32VersionValue);
-        printf("Size of Image: 0x%.8X\n", myPE32Header->sizeOfImage);
-        printf("Size of Headers: 0x%.8X\n", myPE32Header->sizeOfHeaders);
-        printf("Checksum: 0x%.8X\n", myPE32Header->checkSum);
-        printf("Subsystem: 0x%.4X\n", myPE32Header->subsystem);
-        printf("DLL Characteristics: 0x%.4X\n", myPE32Header->dllCharacteristics);
-        printf("Size of Stack Reserve: 0x%.8X\n", myPE32Header->sizeOfStackReserve);
-        printf("Size of Stack Commit: 0x%.8X\n", myPE32Header->sizeOfStackCommit);
-        printf("Size of Heap Reserve: 0x%.8X\n", myPE32Header->sizeOfHeapReserve);
-        printf("Size of Heap Commit: 0x%.8X\n", myPE32Header->sizeOfHeapCommit);
-        printf("Loader Flags: 0x%.8X\n", myPE32Header->loaderFlags);
-        printf("Number of RVA and Sizes: 0x%.8X\n", myPE32Header->numberOfRvaAndSizes);
-        printf("----------HEADER DATA DIRECTORIES----------\n");
-        printf("Export Table Virtual Address: 0x%.8X\n", myPE32Header->dataDirectories.exportTable.VirtualAddress);
-        printf("Export Table Size: 0x%.8X\n", myPE32Header->dataDirectories.exportTable.Size);
-        printf("Import Table Virtual Address: 0x%.8X\n", myPE32Header->dataDirectories.importTable.VirtualAddress);
-        printf("Import Table Size: 0x%.8X\n", myPE32Header->dataDirectories.importTable.Size);
-        printf("Resource Table Virtual Address: 0x%.8X\n", myPE32Header->dataDirectories.resourceTable.VirtualAddress);
-        printf("Resource Table Size: 0x%.8X\n", myPE32Header->dataDirectories.resourceTable.Size);
-        printf("Exception Table Virtual Address: 0x%.8X\n", myPE32Header->dataDirectories.exceptionTable.VirtualAddress);
-        printf("Exception Table Size: 0x%.8X\n", myPE32Header->dataDirectories.exceptionTable.Size);
-        printf("Certificate Table Virtual Address: 0x%.8X\n", myPE32Header->dataDirectories.certificateTable.VirtualAddress);
-        printf("Certificate Table Size: 0x%.8X\n", myPE32Header->dataDirectories.certificateTable.Size);
-        printf("Base Relocation Table Virtual Address: 0x%.8X\n", myPE32Header->dataDirectories.baseRelocationTable.VirtualAddress);
-        printf("Base Relocation Table Size: 0x%.8X\n", myPE32Header->dataDirectories.baseRelocationTable.Size);
-        printf("Debug Virtual Address: 0x%.8X\n", myPE32Header->dataDirectories.debug.VirtualAddress);
-        printf("Debug Size: 0x%.8X\n", myPE32Header->dataDirectories.debug.Size);
-        printf("Global Ptr Virtual Address: 0x%.8X\n", myPE32Header->dataDirectories.globalPtr.VirtualAddress);
-        printf("Global Ptr Size: 0x%.8X\n", myPE32Header->dataDirectories.globalPtr.Size);
-        printf("TLS Table Virtual Address: 0x%.8X\n", myPE32Header->dataDirectories.TLSTable.VirtualAddress);
-        printf("TLS Table Size: 0x%.8X\n", myPE32Header->dataDirectories.TLSTable.Size);
-        printf("Load Config Table Virtual Address: 0x%.8X\n", myPE32Header->dataDirectories.loadConfigTable.VirtualAddress);
-        printf("Load Config Table Size: 0x%.8X\n", myPE32Header->dataDirectories.loadConfigTable.Size);
-        printf("Bound Import Virtual Address: 0x%.8X\n", myPE32Header->dataDirectories.boundImport.VirtualAddress);
-        printf("Bound Import Size: 0x%.8X\n", myPE32Header->dataDirectories.boundImport.Size);
-        printf("IAT Virtual Address: 0x%.8X\n", myPE32Header->dataDirectories.IAT.VirtualAddress);
-        printf("IAT Size: 0x%.8X\n", myPE32Header->dataDirectories.IAT.Size);
-        printf("Delay Import Descriptor Virtual Address: 0x%.8X\n", myPE32Header->dataDirectories.delayImportDescriptor.VirtualAddress);
-        printf("Delay Import Descriptor Size: 0x%.8X\n", myPE32Header->dataDirectories.delayImportDescriptor.Size);
-        printf("CLR Runtime Header Virtual Address: 0x%.8X\n", myPE32Header->dataDirectories.CLRRuntimeHeader.VirtualAddress);
-        printf("CLR Runtime Header Size: 0x%.8X\n", myPE32Header->dataDirectories.CLRRuntimeHeader.Size);
-        printf("----------EXTRA DATA DIRECTORIES----------\n");*/
-        uint32_t numberOfDataDirectoriesLeft = myPE32Header->numberOfRvaAndSizes - (sizeof(Header_Data_Directory)/sizeof(IMAGE_DATA_DIRECTORY));
-        //printf("Number of Data Directories Left: %d\n", numberOfDataDirectoriesLeft);
-        //printf("----------SECTION TABLE----------\n");
-        SectionTableNode *root = constructSectionTableLinkedList(pe, myDOSHeader, myPEHeader);
-        //dumpSections(root);
-        
-        //char name[] = ".text";
-        //SectionTableNode *text = findSectionTable(root, name);
-        
-        //printf("FOUND: %c%c%c%c%c%c%c%c\n", text->Section_Header.Name[0], text->Section_Header.Name[1], text->Section_Header.Name[2], text->Section_Header.Name[3], text->Section_Header.Name[4], text->Section_Header.Name[5], text->Section_Header.Name[6], text->Section_Header.Name[7]);
-        
-        //printf("Finding Entry Point: 0x%.16X\n", resolveEntryPoint(myPE32Header, root));
-        
-        
-        //printf("Export Table Virtual Address: 0x%.8X\n", myPE32Header->dataDirectories.exportTable.VirtualAddress);
-        //printf("Export Table Size: 0x%.8X\n", myPE32Header->dataDirectories.exportTable.Size);
-        
-        Export_Directory_Table *extractedExportDirectoryTable = getExportDirectoryTable(pe, root, myPE32Header);
-    
-        printf("Export Flags: 0x%.8X\n", extractedExportDirectoryTable->ExportFlags);
-        printf("Time/Date Stamp: 0x%.8X\n", extractedExportDirectoryTable->TimeDateStamp);
-        time_t theTime = extractedExportDirectoryTable->TimeDateStamp;
-        struct tm ts = *localtime(&theTime);
-        char buf[80];
-        strftime(buf, sizeof(buf), "%a %Y-%m-%d %H:%M:%S %Z", &ts);
-        printf("%s\n", buf);
-        printf("Major Version: 0x%.4X\n", extractedExportDirectoryTable->MajorVersion);
-        printf("Minor Version: 0x%.4X\n", extractedExportDirectoryTable->MinorVersion);
-        printf("Name RVA: 0x%.8X\n", extractedExportDirectoryTable->NameRVA);
-        printf("Ordinal Base: 0x%.8X\n", extractedExportDirectoryTable->OrdinalBase);
-        printf("Address Table Entries: 0x%.8X\n", extractedExportDirectoryTable->AddressTableEntries);
-        printf("Number of Name Pointers: 0x%.8X\n", extractedExportDirectoryTable->NumberofNamePointers);
-        printf("Export Address Table RVA: 0x%.8X\n", extractedExportDirectoryTable->ExportAddressTableRVA);
-        printf("Name Pointer RVA: 0x%.8X\n", extractedExportDirectoryTable->NamePointerRVA);
-        printf("Ordinal Table RVA: 0x%.8X\n", extractedExportDirectoryTable->OrdinalTableRVA);
-        
-        printf("Resolved Name RVA: 0x%.16X\n", resolveRVA(root, extractedExportDirectoryTable->NameRVA));
-        fseek(pe, resolveRVA(root, extractedExportDirectoryTable->NameRVA), SEEK_SET);
+        printf("Found PE32\n");
+        getPE32_Header(thePEC_FILE);
+        constructSectionTableLinkedList(thePEC_FILE);
+        getExportDirectoryTable(thePEC_FILE);
+        printf("Name RVA: 0x%.8X\n", thePEC_FILE->extractedExport_Directory_Table->NameRVA);
+        printf("Resolved Name RVA: 0x%.16X\n", resolveRVA(thePEC_FILE->root, thePEC_FILE->extractedExport_Directory_Table->NameRVA));
+        fseek(pe, resolveRVA(thePEC_FILE->root, thePEC_FILE->extractedExport_Directory_Table->NameRVA), SEEK_SET);
         char *DLLName = malloc(500);
         fread(DLLName, 1, 500, pe);
-        printf("DLL Name: %s\n", DLLName); //OMFG IT WORKED!
+        printf("DLL Name: %s\n", DLLName);
         free(DLLName);
-        
-        free(extractedExportDirectoryTable);
-        freeSectionTableLinkedList(root);
-        free(myPE32Header);
     }else if (magic == 0x020B){
         printf("Found PE32+\n");
+    }else if (magic == 0x0107){
+        printf("Found ROM Image\n");
     }else{
-        printf("Invalid PE32 magic. Exiting!\n");
-        return 1;
+        printf("Invalid PE32 magic: 0x%.4X\n", magic);
     }
-    
-    free(myPEHeader);
-    free(myDOSHeader);
     fclose(pe);
+    freePEC_FILE(thePEC_FILE);
     return 0;
 }

@@ -1,10 +1,22 @@
+#include "pe.h"
+#include "coff.h"
+#include "dos.h"
+
+#ifndef _PEC_H_
+#define _PEC_H_
+
+typedef struct _SectionTableNode {
+    SECTION_TABLE Section_Header;
+    struct SectionTableNode *next;
+} __attribute__((packed)) SectionTableNode;
+
 typedef struct _PEC_FILE {
     FILE *RawFile;
-    uint32_t FileType;
+    DOS_Header *extractedDOS_Header;
+    PE_Header *extractedPE_Header;
+    PE32_Header *extractedPE32_Header;
+    Export_Directory_Table *extractedExport_Directory_Table;
+    SectionTableNode *root;
 } PEC_FILE;
 
-//PEC_File.FileType
-uint32_t FILE_TYPE_UNKNOWN      = 0x00000000;
-uint32_t FILE_TYPE_PE32         = 0x00000001;
-uint32_t FILE_TYPE_PE32_PLUS    = 0x00000002;
-//End
+#endif

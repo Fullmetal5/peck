@@ -1,5 +1,8 @@
 #include "coff.h"
 
+#ifndef _PE_H_
+#define _PE_H_
+
 typedef struct _IMAGE_DATA_DIRECTORY {
     uint32_t VirtualAddress; //Offset from image base
     uint32_t Size; //Size of data
@@ -194,3 +197,5 @@ typedef struct _Export_Address_Table {
     uint32_t ExportRVA;
     uint32_t ForwarderRVA;
 } __attribute__((packed)) Export_Address_Table;
+
+#endif
