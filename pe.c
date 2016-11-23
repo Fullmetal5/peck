@@ -186,8 +186,8 @@ int main(int argc, char *argv[]){
     getDOS_Header(thePEC_FILE);
     getPE_Header(thePEC_FILE);
     uint16_t magic = 0x0000;
-    fread(&magic, 1, 2, pe);
-    fseek(pe, -2, SEEK_CUR);
+    fread(&magic, 1, 2, thePEC_FILE->RawFile);
+    fseek(thePEC_FILE->RawFile, -2, SEEK_CUR);
     if (magic == 0x010B){
         printf("Found PE32\n");
         getPE32_Header(thePEC_FILE);
@@ -195,9 +195,9 @@ int main(int argc, char *argv[]){
         getExportDirectoryTable(thePEC_FILE);
         printf("Name RVA: 0x%.8X\n", thePEC_FILE->extractedExport_Directory_Table->NameRVA);
         printf("Resolved Name RVA: 0x%.16X\n", resolveRVA(thePEC_FILE->root, thePEC_FILE->extractedExport_Directory_Table->NameRVA));
-        fseek(pe, resolveRVA(thePEC_FILE->root, thePEC_FILE->extractedExport_Directory_Table->NameRVA), SEEK_SET);
+        fseek(thePEC_FILE->RawFile, resolveRVA(thePEC_FILE->root, thePEC_FILE->extractedExport_Directory_Table->NameRVA), SEEK_SET);
         char *DLLName = malloc(500);
-        fread(DLLName, 1, 500, pe);
+        fread(DLLName, 1, 500, thePEC_FILE->RawFile);
         printf("DLL Name: %s\n", DLLName);
         free(DLLName);
     }else if (magic == 0x020B){
