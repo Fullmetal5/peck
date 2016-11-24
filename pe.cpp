@@ -53,28 +53,28 @@ uint64_t resolveEntryPoint(PE32_Header *extractedPE32_Header, SectionTableNode *
 }
 
 void getDOS_Header(PEC_FILE *thePEC_FILE){
-    DOS_Header *extractedDOS_Header = malloc(sizeof(DOS_Header));
+    DOS_Header *extractedDOS_Header = (DOS_Header*)malloc(sizeof(DOS_Header));
     fseek(thePEC_FILE->RawFile, 0, SEEK_SET);
     fread(extractedDOS_Header, 1, sizeof(DOS_Header), thePEC_FILE->RawFile);
     thePEC_FILE->extractedDOS_Header = extractedDOS_Header;
 }
 
 void getPE_Header(PEC_FILE *thePEC_FILE){
-    PE_Header *extractedPE_Header = malloc(sizeof(PE_Header));
+    PE_Header *extractedPE_Header = (PE_Header*)malloc(sizeof(PE_Header));
     fseek(thePEC_FILE->RawFile, thePEC_FILE->extractedDOS_Header->e_lfanew, SEEK_SET);
     fread(extractedPE_Header, 1, sizeof(PE_Header), thePEC_FILE->RawFile);
     thePEC_FILE->extractedPE_Header = extractedPE_Header;
 }
 
 void getPE32_Header(PEC_FILE *thePEC_FILE){
-    PE32_Header *extractedPE32_Header = malloc(sizeof(PE32_Header));
+    PE32_Header *extractedPE32_Header = (PE32_Header*)malloc(sizeof(PE32_Header));
     fseek(thePEC_FILE->RawFile, (thePEC_FILE->extractedDOS_Header->e_lfanew + sizeof(PE_Header)), SEEK_SET);
     fread(extractedPE32_Header, 1, sizeof(PE32_Header), thePEC_FILE->RawFile);
     thePEC_FILE->extractedPE32_Header = extractedPE32_Header;
 }
 
 void getExportDirectoryTable(PEC_FILE *thePEC_FILE){
-    Export_Directory_Table *extractedExportDirectoryTable = malloc(sizeof(Export_Directory_Table));
+    Export_Directory_Table *extractedExportDirectoryTable = (Export_Directory_Table*)malloc(sizeof(Export_Directory_Table));
     fseek(thePEC_FILE->RawFile, resolveRVA(thePEC_FILE->root, thePEC_FILE->extractedPE32_Header->dataDirectories.exportTable.VirtualAddress), SEEK_SET);
     fread(extractedExportDirectoryTable, 1, sizeof(Export_Directory_Table), thePEC_FILE->RawFile);
     thePEC_FILE->extractedExport_Directory_Table = extractedExportDirectoryTable;
@@ -85,7 +85,7 @@ void constructSectionTableLinkedList(PEC_FILE *thePEC_FILE){
         thePEC_FILE->root = NULL;
         return;
     }
-    SectionTableNode *root = malloc(sizeof(SectionTableNode));
+    SectionTableNode *root = (SectionTableNode*)malloc(sizeof(SectionTableNode));
     SectionTableNode *current = root;
     root->next = 0;
     fseek(thePEC_FILE->RawFile, (thePEC_FILE->extractedDOS_Header->e_lfanew + sizeof(PE_Header) + thePEC_FILE->extractedPE_Header->PE_COFF_Header.sizeOfOptionalHeader), SEEK_SET);
@@ -95,7 +95,7 @@ void constructSectionTableLinkedList(PEC_FILE *thePEC_FILE){
         return;
     }
     for (int i = 1; i <= thePEC_FILE->extractedPE_Header->PE_COFF_Header.numberOfSections; i++){
-        current->next = malloc(sizeof(SectionTableNode));
+        current->next = (SectionTableNode*)malloc(sizeof(SectionTableNode));
         current = current->next;
         current->next = 0;
         fread(&current->Section_Header, 1, sizeof(SECTION_TABLE), thePEC_FILE->RawFile);
@@ -181,7 +181,7 @@ int main(int argc, char *argv[]){
     printf("Analysing %s\n", argv[1]);
     FILE *pe = fopen(argv[1], "r");
     //The reason this is being allocated with calloc is because there are alot of pointers in this struct and having them already set to 0 makes it way easier then having to initialize all of them all to 0 and makes it break less when a new pointer is added.
-    PEC_FILE *thePEC_FILE = calloc(sizeof(PEC_FILE), 1);
+    PEC_FILE *thePEC_FILE = (PEC_FILE*)calloc(sizeof(PEC_FILE), 1);
     thePEC_FILE->RawFile = pe;
     getDOS_Header(thePEC_FILE);
     getPE_Header(thePEC_FILE);
@@ -196,21 +196,22 @@ int main(int argc, char *argv[]){
         printf("Name RVA: 0x%.8X\n", thePEC_FILE->extractedExport_Directory_Table->NameRVA);
         printf("Resolved Name RVA: 0x%.16X\n", resolveRVA(thePEC_FILE->root, thePEC_FILE->extractedExport_Directory_Table->NameRVA));
         fseek(thePEC_FILE->RawFile, resolveRVA(thePEC_FILE->root, thePEC_FILE->extractedExport_Directory_Table->NameRVA), SEEK_SET);
-        char *DLLName = malloc(500);
+        char *DLLName = (char*)malloc(500);
         fread(DLLName, 1, 500, thePEC_FILE->RawFile);
         printf("DLL Name: %s\n", DLLName);
         free(DLLName);
         uint32_t *PENamePointerTable = (uint32_t *)malloc(sizeof(uint32_t) * thePEC_FILE->extractedExport_Directory_Table->NumberofNamePointers);
         fseek(thePEC_FILE->RawFile, resolveRVA(thePEC_FILE->root, thePEC_FILE->extractedExport_Directory_Table->NamePointerRVA), SEEK_SET);
         fread(PENamePointerTable, 1, sizeof(uint32_t) * thePEC_FILE->extractedExport_Directory_Table->NumberofNamePointers, thePEC_FILE->RawFile);
+        char *funcName = (char*)malloc(1024); //I just can't be bothered to actually read till a null byte plus getdelim doesn't exist with mingw so screw it.
         for (int i = 0; i < thePEC_FILE->extractedExport_Directory_Table->NumberofNamePointers; i++){
             uint32_t nameAddress = resolveRVA(thePEC_FILE->root, PENamePointerTable[i]);
             fseek(thePEC_FILE->RawFile, nameAddress, SEEK_SET);
-            char *funcName = malloc(500);
-            fread(funcName, 1, 500, thePEC_FILE->RawFile);
+            fread(funcName, 1, 1024, thePEC_FILE->RawFile);
+            funcName[1023] = '\x00'; //If it's to long just truncate it.
             printf("Function Name: %s\n", funcName);
-            free(funcName);
         }
+        free(funcName);
         free(PENamePointerTable);
         
     }else if (magic == 0x020B){
