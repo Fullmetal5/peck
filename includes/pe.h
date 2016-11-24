@@ -3,12 +3,12 @@
 #ifndef _PE_H_
 #define _PE_H_
 
-typedef struct _IMAGE_DATA_DIRECTORY {
+typedef struct IMAGE_DATA_DIRECTORY {
     uint32_t VirtualAddress; //Offset from image base
     uint32_t Size; //Size of data
 } __attribute__((packed)) IMAGE_DATA_DIRECTORY;
 
-typedef struct _Header_Data_Directory {
+typedef struct Header_Data_Directory {
     IMAGE_DATA_DIRECTORY exportTable; //.edata
     IMAGE_DATA_DIRECTORY importTable; //.idata
     IMAGE_DATA_DIRECTORY resourceTable; //.rsrc
@@ -27,7 +27,7 @@ typedef struct _Header_Data_Directory {
     uint64_t reserved;
 } __attribute__((packed)) Header_Data_Directory;
 
-typedef struct _SECTION_TABLE {
+typedef struct SECTION_TABLE {
     char Name[8];
     uint32_t VirtualSize;
     uint32_t VirtualAddress;
@@ -39,6 +39,11 @@ typedef struct _SECTION_TABLE {
     uint16_t NumberOfLinenumbers;
     uint32_t Characteristics;
 } __attribute__((packed)) SECTION_TABLE;
+
+typedef struct SectionTableNode {
+    SECTION_TABLE Section_Header;
+    struct SectionTableNode *next;
+} __attribute__((packed)) SectionTableNode;
 
 //SECTION_TABLE.Characteristics Flags
 uint32_t IMAGE_SCN_TYPE_NO_PAD          = 0x00000008;
@@ -78,7 +83,7 @@ uint32_t IMAGE_SCN_MEM_READ             = 0x40000000;
 uint32_t IMAGE_SCN_MEM_WRITE            = 0x80000000;
 //End
 
-typedef struct _PE32_Header {
+typedef struct PE32_Header {
     uint16_t magic;
     uint8_t  majorLinkerVersion;
     uint8_t  minorLinkerVersion;
@@ -112,7 +117,7 @@ typedef struct _PE32_Header {
     Header_Data_Directory dataDirectories;
 } __attribute__((packed)) PE32_Header;
 
-typedef struct _PE32PLUS_Header {
+typedef struct PE32PLUS_Header {
     uint16_t magic;
     uint8_t  majorLinkerVersion;
     uint8_t  minorLinkerVersion;
@@ -145,7 +150,7 @@ typedef struct _PE32PLUS_Header {
     Header_Data_Directory dataDirectories;
 } __attribute__((packed)) PE32PLUS_Header;
 
-typedef struct _PE_Header {
+typedef struct PE_Header {
     char signature[4];
     COFF_Header PE_COFF_Header;
 } __attribute__((packed)) PE_Header;
@@ -179,7 +184,7 @@ uint16_t IMAGE_DLLCHARACTERISTICS_GUARD_CF              = 0x4000;
 uint16_t IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE = 0x8000;
 //End DLL Characteristics
 
-typedef struct _Export_Directory_Table {
+typedef struct Export_Directory_Table {
     uint32_t ExportFlags;
     uint32_t TimeDateStamp;
     uint16_t MajorVersion;
@@ -193,7 +198,7 @@ typedef struct _Export_Directory_Table {
     uint32_t OrdinalTableRVA;
 } __attribute__((packed)) Export_Directory_Table;
 
-typedef struct _Export_Address_Table {
+typedef struct Export_Address_Table {
     uint32_t ExportRVA;
     uint32_t ForwarderRVA;
 } __attribute__((packed)) Export_Address_Table;

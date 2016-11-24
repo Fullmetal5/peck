@@ -1,7 +1,7 @@
 #ifndef _COFF_H_
 #define _COFF_H_
 
-typedef struct _COFF_Header {
+typedef struct COFF_Header {
     uint16_t machine;
     uint16_t numberOfSections;
     uint32_t timeDateStamp;
