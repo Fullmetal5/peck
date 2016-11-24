@@ -200,6 +200,19 @@ int main(int argc, char *argv[]){
         fread(DLLName, 1, 500, thePEC_FILE->RawFile);
         printf("DLL Name: %s\n", DLLName);
         free(DLLName);
+        uint32_t *PENamePointerTable = (uint32_t *)malloc(sizeof(uint32_t) * thePEC_FILE->extractedExport_Directory_Table->NumberofNamePointers);
+        fseek(thePEC_FILE->RawFile, resolveRVA(thePEC_FILE->root, thePEC_FILE->extractedExport_Directory_Table->NamePointerRVA), SEEK_SET);
+        fread(PENamePointerTable, 1, sizeof(uint32_t) * thePEC_FILE->extractedExport_Directory_Table->NumberofNamePointers, thePEC_FILE->RawFile);
+        for (int i = 0; i < thePEC_FILE->extractedExport_Directory_Table->NumberofNamePointers; i++){
+            uint32_t nameAddress = resolveRVA(thePEC_FILE->root, PENamePointerTable[i]);
+            fseek(thePEC_FILE->RawFile, nameAddress, SEEK_SET);
+            char *funcName = malloc(500);
+            fread(funcName, 1, 500, thePEC_FILE->RawFile);
+            printf("Function Name: %s\n", funcName);
+            free(funcName);
+        }
+        free(PENamePointerTable);
+        
     }else if (magic == 0x020B){
         printf("Found PE32+\n");
     }else if (magic == 0x0107){
