@@ -1,5 +1,5 @@
-#ifndef _DOS_H_
-#define _DOS_H_
+#ifndef DOS_H
+#define DOS_H
 
 typedef struct DOS_Header {
     char signature[2];

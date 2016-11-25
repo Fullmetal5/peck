@@ -1,7 +1,9 @@
+#include <stdint.h>
 #include "coff.h"
+#include "dos.h"
 
-#ifndef _PE_H_
-#define _PE_H_
+#ifndef PE_STRUCT_H
+#define PE_STRUCT_H
 
 typedef struct IMAGE_DATA_DIRECTORY {
     uint32_t VirtualAddress; //Offset from image base
@@ -46,41 +48,41 @@ typedef struct SectionTableNode {
 } __attribute__((packed)) SectionTableNode;
 
 //SECTION_TABLE.Characteristics Flags
-uint32_t IMAGE_SCN_TYPE_NO_PAD          = 0x00000008;
-uint32_t IMAGE_SCN_CNT_CODE             = 0x00000020;
-uint32_t IMAGE_SCN_INITIALIZED_DATA     = 0x00000040;
-uint32_t IMAGE_SCN_UNINITIALIZED_DATA   = 0x00000080;
-uint32_t IMAGE_SCN_LNK_OTHER            = 0x00000100;
-uint32_t IMAGE_SCN_LNK_INFO             = 0x00000200;
-uint32_t IMAGE_SCN_LNK_REMOVE           = 0x00000800;
-uint32_t IMAGE_SCN_LNK_COMDAT           = 0x00001000;
-uint32_t IMAGE_SCN_GPREL                = 0x00008000;
-uint32_t IMAGE_SCN_MEM_PURGEABLE        = 0x00020000;
-uint32_t IMAGE_SCN_MEM_16BIT            = 0x00020000;
-uint32_t IMAGE_SCN_MEM_LOCKED           = 0x00040000;
-uint32_t IMAGE_SCN_PRELOAD              = 0x00080000;
-uint32_t IMAGE_SCN_ALIGN_1BYTES         = 0x00100000;
-uint32_t IMAGE_SCN_ALIGN_2BYTES         = 0x00200000;
-uint32_t IMAGE_SCN_ALIGN_4BYTES         = 0x00300000;
-uint32_t IMAGE_SCN_ALIGN_8BYTES         = 0x00400000;
-uint32_t IMAGE_SCN_ALIGN_16BYTES        = 0x00500000;
-uint32_t IMAGE_SCN_ALIGN_32BYTES        = 0x00600000;
-uint32_t IMAGE_SCN_ALIGN_64BYTES        = 0x00700000;
-uint32_t IMAGE_SCN_ALIGN_128BYTES       = 0x00800000;
-uint32_t IMAGE_SCN_ALIGN_256BYTES       = 0x00900000;
-uint32_t IMAGE_SCN_ALIGN_512BYTES       = 0x00A00000;
-uint32_t IMAGE_SCN_ALIGN_1024BYTES      = 0x00B00000;
-uint32_t IMAGE_SCN_ALIGN_2048BYTES      = 0x00C00000;
-uint32_t IMAGE_SCN_ALIGN_4096BYTES      = 0x00D00000;
-uint32_t IMAGE_SCN_ALIGN_8192BYTES      = 0x00E00000;
-uint32_t IMAGE_SCN_LNK_NRELOC_OVFL      = 0x01000000;
-uint32_t IMAGE_SCN_MEM_DISCARDABLE      = 0x02000000;
-uint32_t IMAGE_SCN_MEM_NOT_CACHED       = 0x04000000;
-uint32_t IMAGE_SCN_MEM_NOT_PAGED        = 0x08000000;
-uint32_t IMAGE_SCN_MEM_NOT_SHARED       = 0x10000000;
-uint32_t IMAGE_SCN_MEM_EXECUTE          = 0x20000000;
-uint32_t IMAGE_SCN_MEM_READ             = 0x40000000;
-uint32_t IMAGE_SCN_MEM_WRITE            = 0x80000000;
+static uint32_t IMAGE_SCN_TYPE_NO_PAD          = 0x00000008;
+static uint32_t IMAGE_SCN_CNT_CODE             = 0x00000020;
+static uint32_t IMAGE_SCN_INITIALIZED_DATA     = 0x00000040;
+static uint32_t IMAGE_SCN_UNINITIALIZED_DATA   = 0x00000080;
+static uint32_t IMAGE_SCN_LNK_OTHER            = 0x00000100;
+static uint32_t IMAGE_SCN_LNK_INFO             = 0x00000200;
+static uint32_t IMAGE_SCN_LNK_REMOVE           = 0x00000800;
+static uint32_t IMAGE_SCN_LNK_COMDAT           = 0x00001000;
+static uint32_t IMAGE_SCN_GPREL                = 0x00008000;
+static uint32_t IMAGE_SCN_MEM_PURGEABLE        = 0x00020000;
+static uint32_t IMAGE_SCN_MEM_16BIT            = 0x00020000;
+static uint32_t IMAGE_SCN_MEM_LOCKED           = 0x00040000;
+static uint32_t IMAGE_SCN_PRELOAD              = 0x00080000;
+static uint32_t IMAGE_SCN_ALIGN_1BYTES         = 0x00100000;
+static uint32_t IMAGE_SCN_ALIGN_2BYTES         = 0x00200000;
+static uint32_t IMAGE_SCN_ALIGN_4BYTES         = 0x00300000;
+static uint32_t IMAGE_SCN_ALIGN_8BYTES         = 0x00400000;
+static uint32_t IMAGE_SCN_ALIGN_16BYTES        = 0x00500000;
+static uint32_t IMAGE_SCN_ALIGN_32BYTES        = 0x00600000;
+static uint32_t IMAGE_SCN_ALIGN_64BYTES        = 0x00700000;
+static uint32_t IMAGE_SCN_ALIGN_128BYTES       = 0x00800000;
+static uint32_t IMAGE_SCN_ALIGN_256BYTES       = 0x00900000;
+static uint32_t IMAGE_SCN_ALIGN_512BYTES       = 0x00A00000;
+static uint32_t IMAGE_SCN_ALIGN_1024BYTES      = 0x00B00000;
+static uint32_t IMAGE_SCN_ALIGN_2048BYTES      = 0x00C00000;
+static uint32_t IMAGE_SCN_ALIGN_4096BYTES      = 0x00D00000;
+static uint32_t IMAGE_SCN_ALIGN_8192BYTES      = 0x00E00000;
+static uint32_t IMAGE_SCN_LNK_NRELOC_OVFL      = 0x01000000;
+static uint32_t IMAGE_SCN_MEM_DISCARDABLE      = 0x02000000;
+static uint32_t IMAGE_SCN_MEM_NOT_CACHED       = 0x04000000;
+static uint32_t IMAGE_SCN_MEM_NOT_PAGED        = 0x08000000;
+static uint32_t IMAGE_SCN_MEM_NOT_SHARED       = 0x10000000;
+static uint32_t IMAGE_SCN_MEM_EXECUTE          = 0x20000000;
+static uint32_t IMAGE_SCN_MEM_READ             = 0x40000000;
+static uint32_t IMAGE_SCN_MEM_WRITE            = 0x80000000;
 //End
 
 typedef struct PE32_Header {
@@ -156,32 +158,32 @@ typedef struct PE_Header {
 } __attribute__((packed)) PE_Header;
 
 //Windows Subsystem values
-uint16_t IMAGE_SUBSYSTEM_UNKNOWN                    = 0;
-uint16_t IMAGE_SUBSYSTEM_NATIVE                     = 1;
-uint16_t IMAGE_SUBSYSTEM_WINDOWS_GUI                = 2;
-uint16_t IMAGE_SUBSYSTEM_WINDOWS_CUI                = 3;
-uint16_t IMAGE_SUBSYSTEM_POSIX_CUI                  = 7;
-uint16_t IMAGE_SUBSYSTEM_WINDOWS_CE_GUI             = 9;
-uint16_t IMAGE_SUBSYSTEM_EFI_APPLICATION            = 10;
-uint16_t IMAGE_SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER    = 11;
-uint16_t IMAGE_SUBSYSTEM_RUNTIME_DRIVER             = 12;
-uint16_t IMAGE_SUBSYSTEM_ROM                        = 13;
-uint16_t IMAGE_SUBSYSTEM_XBOX                       = 14;
+static uint16_t IMAGE_SUBSYSTEM_UNKNOWN                    = 0;
+static uint16_t IMAGE_SUBSYSTEM_NATIVE                     = 1;
+static uint16_t IMAGE_SUBSYSTEM_WINDOWS_GUI                = 2;
+static uint16_t IMAGE_SUBSYSTEM_WINDOWS_CUI                = 3;
+static uint16_t IMAGE_SUBSYSTEM_POSIX_CUI                  = 7;
+static uint16_t IMAGE_SUBSYSTEM_WINDOWS_CE_GUI             = 9;
+static uint16_t IMAGE_SUBSYSTEM_EFI_APPLICATION            = 10;
+static uint16_t IMAGE_SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER    = 11;
+static uint16_t IMAGE_SUBSYSTEM_RUNTIME_DRIVER             = 12;
+static uint16_t IMAGE_SUBSYSTEM_ROM                        = 13;
+static uint16_t IMAGE_SUBSYSTEM_XBOX                       = 14;
 //End Windows Subsystem values
 
 //DLL Characteristics
 //Characterstics 0x0001, 0x0002, 0x0004, 0x0008 are reserved and must be zero.
-uint16_t IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA       = 0x0020;
-uint16_t IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE          = 0x0040;
-uint16_t IMAGE_DLLCHARACTERISTICS_FORCE_INTEGRITY       = 0x0080;
-uint16_t IMAGE_DLLCHARACTERISTICS_NX_COMPAT             = 0x0100;
-uint16_t IMAGE_DLLCHARACTERISTICS_NO_ISOLATION          = 0x0200;
-uint16_t IMAGE_DLLCHARACTERISTICS_NO_SEH                = 0x0400;
-uint16_t IMAGE_DLLCHARACTERISTICS_NO_BIND               = 0x0800;
-uint16_t IMAGE_DLLCHARACTERISTICS_APPCONTAINER          = 0x1000;
-uint16_t IMAGE_DLLCHARACTERISTICS_WDM_DRIVER            = 0x2000;
-uint16_t IMAGE_DLLCHARACTERISTICS_GUARD_CF              = 0x4000;
-uint16_t IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE = 0x8000;
+static uint16_t IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA       = 0x0020;
+static uint16_t IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE          = 0x0040;
+static uint16_t IMAGE_DLLCHARACTERISTICS_FORCE_INTEGRITY       = 0x0080;
+static uint16_t IMAGE_DLLCHARACTERISTICS_NX_COMPAT             = 0x0100;
+static uint16_t IMAGE_DLLCHARACTERISTICS_NO_ISOLATION          = 0x0200;
+static uint16_t IMAGE_DLLCHARACTERISTICS_NO_SEH                = 0x0400;
+static uint16_t IMAGE_DLLCHARACTERISTICS_NO_BIND               = 0x0800;
+static uint16_t IMAGE_DLLCHARACTERISTICS_APPCONTAINER          = 0x1000;
+static uint16_t IMAGE_DLLCHARACTERISTICS_WDM_DRIVER            = 0x2000;
+static uint16_t IMAGE_DLLCHARACTERISTICS_GUARD_CF              = 0x4000;
+static uint16_t IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE = 0x8000;
 //End DLL Characteristics
 
 typedef struct Export_Directory_Table {
