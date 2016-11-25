@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "pe.h"
+#include "util.h"
 
 int main(int argc, char *argv[]){
     if (argc != 2){
@@ -33,6 +34,8 @@ int main(int argc, char *argv[]){
         populateOrdinalArray(thePEC_FILE);
         populateExportArray(thePEC_FILE);
         char *ForwardedName = (char*)malloc(500);
+        char *ForwardedDLLName = (char*)malloc(500);
+        char *ForwardedFuncName = (char*)malloc(500);
         for (int i = 0; i < thePEC_FILE->extractedExport_Directory_Table->NumberofNamePointers; i++){
             uint16_t ordinal = thePEC_FILE->Export_Directory_Ordinal_Array[i];
             uint16_t realOrdinal = ordinal-thePEC_FILE->extractedExport_Directory_Table->OrdinalBase + 1; //This couldn't make sense unless you add 1 but the documentation doesn't say anything about it :/
@@ -43,18 +46,26 @@ int main(int argc, char *argv[]){
             printf("Export Index:            %d\n", realOrdinal);
             printf("Export or Forwarder RVA: 0x%.8X\n", ExportorForwarderRVA);
             if (isValidForwarderRVA(thePEC_FILE, ExportorForwarderRVA)){
-                printf("This is a forwarder RVA\n");
+                printf("This is a Forwarder RVA\n");
                 uint64_t resolvedForwarder = resolveRVA(thePEC_FILE->SectionTableLinkedList, ExportorForwarderRVA);
                 printf("Resolved Forwarder RVA:  0x%.16X\n", resolvedForwarder);
                 fseek(thePEC_FILE->RawFile, resolvedForwarder, SEEK_SET);
                 fread(ForwardedName, 1, 500, thePEC_FILE->RawFile);
                 ForwardedName[499] = '\x00';
                 printf("Forwarded Name:          %s\n", ForwardedName);
+                int bytesCopied = copyTillByte(ForwardedDLLName, '.', 500, ForwardedName);
+                ForwardedDLLName[bytesCopied] = '\x00';
+                printf("Forwarded DLL Name:      %s\n", ForwardedDLLName);
+                bytesCopied = copyTillByte(ForwardedFuncName, '\x00', 500, ForwardedName + bytesCopied + 1);
+                ForwardedFuncName[bytesCopied] = '\x00';
+                printf("Forwarded Function Name: %s\n", ForwardedFuncName);
             }else{
-                printf("This is an export RVA\n");
+                printf("This is an Export RVA\n");
             }
         }
         free(ForwardedName);
+        free(ForwardedDLLName);
+        free(ForwardedFuncName);
     }else if (magic == 0x020B){
         printf("Found PE32+\n");
     }else if (magic == 0x0107){
