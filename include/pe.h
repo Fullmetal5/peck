@@ -14,20 +14,27 @@ typedef struct PEC_FILE {
     PE_Header *extractedPE_Header;
     PE32_Header *extractedPE32_Header;
     Export_Directory_Table *extractedExport_Directory_Table;
-    SectionTableNode *root;
+    SectionTableNode *SectionTableLinkedList;
+    char **Export_Directory_Name_Array;
+    uint16_t *Export_Directory_Ordinal_Array;
+    Export_Address_Table *Export_Address_Array;
 } PEC_FILE;
 
-extern uint64_t resolveRVA(SectionTableNode *root, uint64_t address);
-extern uint64_t resolveRealMemoryAddress(PE32_Header *extractedPE32_Header, SectionTableNode *root, uint64_t address);
-extern uint64_t resolveEntryPoint(PE32_Header *extractedPE32_Header, SectionTableNode *root);
-extern void getDOS_Header(PEC_FILE *thePEC_FILE);
-extern void getPE_Header(PEC_FILE *thePEC_FILE);
-extern void getPE32_Header(PEC_FILE *thePEC_FILE);
-extern void getExportDirectoryTable(PEC_FILE *thePEC_FILE);
+extern uint64_t resolveRVA(SectionTableNode *SectionTableLinkedList, uint64_t address);
+extern uint64_t resolveRealMemoryAddress(PE32_Header *extractedPE32_Header, SectionTableNode *SectionTableLinkedList, uint64_t address);
+extern uint64_t resolveEntryPoint(PE32_Header *extractedPE32_Header, SectionTableNode *SectionTableLinkedList);
+extern void populateDOS_Header(PEC_FILE *thePEC_FILE);
+extern void populatePE_Header(PEC_FILE *thePEC_FILE);
+extern void populatePE32_Header(PEC_FILE *thePEC_FILE);
+extern void populateExportDirectoryTable(PEC_FILE *thePEC_FILE);
 extern void constructSectionTableLinkedList(PEC_FILE *thePEC_FILE);
-extern void freeSectionTableLinkedList(SectionTableNode *root);
-extern SectionTableNode* findSectionTable(SectionTableNode *root, char name[8]);
-extern void dumpSections(SectionTableNode *root);
+extern void freeSectionTableLinkedList(SectionTableNode *SectionTableLinkedList);
+extern SectionTableNode* findSectionTable(SectionTableNode *SectionTableLinkedList, char name[8]);
+extern int isValidForwarderRVA(PEC_FILE *thePEC_FILE, uint32_t ForwarderRVA);
+extern void dumpSections(SectionTableNode *SectionTableLinkedList);
+extern void populateNameArray(PEC_FILE *thePEC_FILE);
+extern void populateOrdinalArray(PEC_FILE *thePEC_FILE);
+extern void populateExportArray(PEC_FILE *thePEC_FILE);
 extern void freePEC_FILE(PEC_FILE *thePEC_FILE);
 
 #endif
