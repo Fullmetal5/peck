@@ -5,8 +5,10 @@
 uint64_t resolveRVA(SectionTableNode *SectionTableLinkedList, uint64_t address){
     SectionTableNode *current = SectionTableLinkedList;
     while (current != 0){
-        if ((current->Section_Header.VirtualAddress < address) && (address < current->Section_Header.VirtualAddress+current->Section_Header.VirtualSize)){
-            return address - current->Section_Header.VirtualAddress + current->Section_Header.PointerToRawData;
+        uint32_t startAddress = current->Section_Header.VirtualAddress;
+        uint32_t endAddress   = startAddress + current->Section_Header.VirtualSize;
+        if ((startAddress < address) && (address < endAddress)){
+            return address - startAddress + current->Section_Header.PointerToRawData;
         }
         current = current->next;
     }
@@ -19,8 +21,10 @@ uint64_t resolveRealMemoryAddress(PE32_Header *extractedPE32_Header, SectionTabl
     address = address - extractedPE32_Header->imageBase;
     SectionTableNode *current = SectionTableLinkedList;
     while (current != 0){
-        if ((current->Section_Header.VirtualAddress < address) && (address < current->Section_Header.VirtualAddress+current->Section_Header.VirtualSize)){
-            return address - current->Section_Header.VirtualAddress + current->Section_Header.PointerToRawData;
+        uint32_t startAddress = current->Section_Header.VirtualAddress;
+        uint32_t endAddress   = startAddress + current->Section_Header.VirtualSize;
+        if ((startAddress < address) && (address < endAddress)){
+            return address - startAddress + current->Section_Header.PointerToRawData;
         }
         current = current->next;
     }
@@ -160,9 +164,9 @@ void populateOrdinalArray(PEC_FILE *thePEC_FILE){
 }
 
 void populateExportArray(PEC_FILE *thePEC_FILE){
-    thePEC_FILE->Export_Address_Array = malloc(thePEC_FILE->extractedExport_Directory_Table->AddressTableEntries * sizeof(Export_Address_Table));
+    thePEC_FILE->Export_Address_Array = malloc(thePEC_FILE->extractedExport_Directory_Table->AddressTableEntries * sizeof(uint32_t));
     fseek(thePEC_FILE->RawFile, resolveRVA(thePEC_FILE->SectionTableLinkedList, thePEC_FILE->extractedExport_Directory_Table->ExportAddressTableRVA), SEEK_SET);
-    fread(thePEC_FILE->Export_Address_Array, 1, thePEC_FILE->extractedExport_Directory_Table->AddressTableEntries * sizeof(Export_Address_Table), thePEC_FILE->RawFile);
+    fread(thePEC_FILE->Export_Address_Array, 1, thePEC_FILE->extractedExport_Directory_Table->AddressTableEntries * sizeof(uint32_t), thePEC_FILE->RawFile);
 }
 
 //Does everything BUT run close on the file. To properly free everything make sure you close the RawFile before passing the PEC_FILE to this function.

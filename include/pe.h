@@ -17,7 +17,7 @@ typedef struct PEC_FILE {
     SectionTableNode *SectionTableLinkedList;
     char **Export_Directory_Name_Array;
     uint16_t *Export_Directory_Ordinal_Array;
-    Export_Address_Table *Export_Address_Array;
+    uint32_t *Export_Address_Array;
 } PEC_FILE;
 
 extern uint64_t resolveRVA(SectionTableNode *SectionTableLinkedList, uint64_t address);
