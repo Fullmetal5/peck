@@ -200,9 +200,4 @@ typedef struct Export_Directory_Table {
     uint32_t OrdinalTableRVA;
 } __attribute__((packed)) Export_Directory_Table;
 
-typedef struct Export_Address_Table {
-    uint32_t ExportRVA;
-    uint32_t ForwarderRVA;
-} __attribute__((packed)) Export_Address_Table;
-
 #endif
