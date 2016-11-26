@@ -23,19 +23,20 @@ int main(int argc, char *argv[]){
         populatePE32_Header(thePEC_FILE);
         constructSectionTableLinkedList(thePEC_FILE);
         populateExportDirectoryTable(thePEC_FILE);
+        if (thePEC_FILE->extractedExport_Directory_Table == NULL){
+            return 0;
+        }
         printf("Name RVA: 0x%.8X\n", thePEC_FILE->extractedExport_Directory_Table->NameRVA);
         printf("Resolved Name RVA: 0x%.16X\n", resolveRVA(thePEC_FILE->SectionTableLinkedList, thePEC_FILE->extractedExport_Directory_Table->NameRVA));
         fseek(thePEC_FILE->RawFile, resolveRVA(thePEC_FILE->SectionTableLinkedList, thePEC_FILE->extractedExport_Directory_Table->NameRVA), SEEK_SET);
-        char *DLLName = (char*)malloc(500);
-        fread(DLLName, 1, 500, thePEC_FILE->RawFile);
+        char* DLLName = copyStringFromFile(thePEC_FILE->RawFile);
         printf("DLL Name: %s\n", DLLName);
         free(DLLName);
         populateNameArray(thePEC_FILE);
         populateOrdinalArray(thePEC_FILE);
         populateExportArray(thePEC_FILE);
-        char *ForwardedName = (char*)malloc(500);
-        char *ForwardedDLLName = (char*)malloc(500);
-        char *ForwardedFuncName = (char*)malloc(500);
+        char *ForwardedDLLName = (char*)malloc(1024);
+        char *ForwardedFuncName = (char*)malloc(1024);
         for (int i = 0; i < thePEC_FILE->extractedExport_Directory_Table->NumberofNamePointers; i++){
             uint16_t ordinal = thePEC_FILE->Export_Directory_Ordinal_Array[i];
             uint16_t realOrdinal = ordinal-thePEC_FILE->extractedExport_Directory_Table->OrdinalBase + 1; //This couldn't make sense unless you add 1 but the documentation doesn't say anything about it :/
@@ -50,20 +51,21 @@ int main(int argc, char *argv[]){
                 uint64_t resolvedForwarder = resolveRVA(thePEC_FILE->SectionTableLinkedList, ExportorForwarderRVA);
                 printf("Resolved Forwarder RVA:  0x%.16X\n", resolvedForwarder);
                 fseek(thePEC_FILE->RawFile, resolvedForwarder, SEEK_SET);
-                fread(ForwardedName, 1, 500, thePEC_FILE->RawFile);
-                ForwardedName[499] = '\x00';
+                char *ForwardedName = copyStringFromFile(thePEC_FILE->RawFile);
                 printf("Forwarded Name:          %s\n", ForwardedName);
-                int bytesCopied = copyTillByte(ForwardedDLLName, '.', 500, ForwardedName);
+                int bytesCopied = copyTillByte(ForwardedDLLName, '.', 1024, ForwardedName);
                 ForwardedDLLName[bytesCopied] = '\x00';
                 printf("Forwarded DLL Name:      %s\n", ForwardedDLLName);
-                bytesCopied = copyTillByte(ForwardedFuncName, '\x00', 500, ForwardedName + bytesCopied + 1);
+                bytesCopied = copyTillByte(ForwardedFuncName, '\x00', 1024, ForwardedName + bytesCopied + 1);
                 ForwardedFuncName[bytesCopied] = '\x00';
                 printf("Forwarded Function Name: %s\n", ForwardedFuncName);
+                free(ForwardedName);
             }else{
                 printf("This is an Export RVA\n");
+                uint64_t resolvedExport = resolveRVA(thePEC_FILE->SectionTableLinkedList, ExportorForwarderRVA);
+                printf("Export Address:          0x%.16X\n", resolvedExport);
             }
         }
-        free(ForwardedName);
         free(ForwardedDLLName);
         free(ForwardedFuncName);
     }else if (magic == 0x020B){

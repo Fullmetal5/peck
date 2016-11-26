@@ -59,9 +59,15 @@ void populatePE32_Header(PEC_FILE *thePEC_FILE){
 
 void populateExportDirectoryTable(PEC_FILE *thePEC_FILE){
     Export_Directory_Table *extractedExportDirectoryTable = (Export_Directory_Table*)malloc(sizeof(Export_Directory_Table));
-    fseek(thePEC_FILE->RawFile, resolveRVA(thePEC_FILE->SectionTableLinkedList, thePEC_FILE->extractedPE32_Header->dataDirectories.exportTable.VirtualAddress), SEEK_SET);
-    fread(extractedExportDirectoryTable, 1, sizeof(Export_Directory_Table), thePEC_FILE->RawFile);
-    thePEC_FILE->extractedExport_Directory_Table = extractedExportDirectoryTable;
+    uint64_t exportTableAddress = thePEC_FILE->extractedPE32_Header->dataDirectories.exportTable.VirtualAddress;
+    if (exportTableAddress != 0){
+        fseek(thePEC_FILE->RawFile, resolveRVA(thePEC_FILE->SectionTableLinkedList, exportTableAddress), SEEK_SET);
+        fread(extractedExportDirectoryTable, 1, sizeof(Export_Directory_Table), thePEC_FILE->RawFile);
+        thePEC_FILE->extractedExport_Directory_Table = extractedExportDirectoryTable;
+    }else{
+        printf("WARNING: No export table found\n");
+        thePEC_FILE->extractedExport_Directory_Table = NULL;
+    }
 }
 
 void constructSectionTableLinkedList(PEC_FILE *thePEC_FILE){
@@ -112,12 +118,9 @@ SectionTableNode* findSectionTable(SectionTableNode *SectionTableLinkedList, cha
 int isValidForwarderRVA(PEC_FILE *thePEC_FILE, uint32_t ForwarderRVA){
     uint32_t startAddress = thePEC_FILE->extractedPE32_Header->dataDirectories.exportTable.VirtualAddress;
     uint32_t endAddress   = startAddress + thePEC_FILE->extractedPE32_Header->dataDirectories.exportTable.Size;
-    //printf("0x%.64X\n0x%.64X\n0x%.64X\n", startAddress, ForwarderRVA, endAddress);
     if ((startAddress < ForwarderRVA) && (ForwarderRVA < endAddress)){
-        //printf("Good RVA\n");
         return 1;
     }else{
-        //printf("Bad RVA\n");
         return 0;
     }
 }
@@ -148,11 +151,9 @@ void populateNameArray(PEC_FILE *thePEC_FILE){
     fseek(thePEC_FILE->RawFile, resolveRVA(thePEC_FILE->SectionTableLinkedList, thePEC_FILE->extractedExport_Directory_Table->NamePointerRVA), SEEK_SET);
     fread(PENamePointerTable, 1, sizeof(uint32_t) * thePEC_FILE->extractedExport_Directory_Table->NumberofNamePointers, thePEC_FILE->RawFile);
     for (int i = 0; i < thePEC_FILE->extractedExport_Directory_Table->NumberofNamePointers; i++){
-        thePEC_FILE->Export_Directory_Name_Array[i] = malloc(1024 * sizeof(char)); //1024 byte limit on function names
         uint32_t nameAddress = resolveRVA(thePEC_FILE->SectionTableLinkedList, PENamePointerTable[i]);
         fseek(thePEC_FILE->RawFile, nameAddress, SEEK_SET);
-        fread(thePEC_FILE->Export_Directory_Name_Array[i], 1, 1024, thePEC_FILE->RawFile);
-        thePEC_FILE->Export_Directory_Name_Array[i][1023] = '\x00'; //Make sure things are null terminated
+        thePEC_FILE->Export_Directory_Name_Array[i] = copyStringFromFile(thePEC_FILE->RawFile);
     }
     free(PENamePointerTable);
 }
