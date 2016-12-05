@@ -5,6 +5,11 @@
 #include "pe.h"
 #include "util.h"
 
+void cleanup(PEC_FILE *thePEC_FILE){
+    fclose(thePEC_FILE->RawFile);
+    freePEC_FILE(thePEC_FILE);
+}
+
 int main(int argc, char *argv[]){
     if (argc != 2){
         return 0;
@@ -24,6 +29,7 @@ int main(int argc, char *argv[]){
         constructSectionTableLinkedList(thePEC_FILE);
         populateExportDirectoryTable(thePEC_FILE);
         if (thePEC_FILE->extractedExport_Directory_Table == NULL){
+            cleanup(thePEC_FILE);
             return 0;
         }
         printf("Name RVA: 0x%.8X\n", thePEC_FILE->extractedExport_Directory_Table->NameRVA);
@@ -75,7 +81,6 @@ int main(int argc, char *argv[]){
     }else{
         printf("Invalid PE32 magic: 0x%.4X\n", magic);
     }
-    fclose(thePEC_FILE->RawFile);
-    freePEC_FILE(thePEC_FILE);
+    cleanup(thePEC_FILE);
     return 0;
 }

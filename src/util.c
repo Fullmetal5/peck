@@ -55,7 +55,9 @@ void* readTillByte(void* dest, char byte, int length, int* bytesCopied, FILE* sr
         for (; (*bytesCopied) < length; *bytesCopied = (*bytesCopied) + 1){
             int retValue = fread(&byteRead, 1, 1, src);
             if (retValue != 1){
+                printf("ERROR (retValue)\n");
                 if (allocateDynamically){
+                    printf("Freeing memory\n");
                     free(dest);
                 }
                 return NULL;

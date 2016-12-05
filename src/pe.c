@@ -58,14 +58,14 @@ void populatePE32_Header(PEC_FILE *thePEC_FILE){
 }
 
 void populateExportDirectoryTable(PEC_FILE *thePEC_FILE){
-    Export_Directory_Table *extractedExportDirectoryTable = (Export_Directory_Table*)malloc(sizeof(Export_Directory_Table));
+    thePEC_FILE->extractedExport_Directory_Table = (Export_Directory_Table*)malloc(sizeof(Export_Directory_Table));
     uint64_t exportTableAddress = thePEC_FILE->extractedPE32_Header->dataDirectories.exportTable.VirtualAddress;
     if (exportTableAddress != 0){
         fseek(thePEC_FILE->RawFile, resolveRVA(thePEC_FILE->SectionTableLinkedList, exportTableAddress), SEEK_SET);
-        fread(extractedExportDirectoryTable, 1, sizeof(Export_Directory_Table), thePEC_FILE->RawFile);
-        thePEC_FILE->extractedExport_Directory_Table = extractedExportDirectoryTable;
+        fread(thePEC_FILE->extractedExport_Directory_Table, 1, sizeof(Export_Directory_Table), thePEC_FILE->RawFile);
     }else{
         printf("WARNING: No export table found\n");
+        free(thePEC_FILE->extractedExport_Directory_Table);
         thePEC_FILE->extractedExport_Directory_Table = NULL;
     }
 }
