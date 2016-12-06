@@ -148,6 +148,15 @@ void dumpSections(SectionTableNode *SectionTableLinkedList){
 void populateNameArray(PEC_FILE *thePEC_FILE){
     thePEC_FILE->Export_Directory_Name_Array = malloc(thePEC_FILE->extractedExport_Directory_Table->NumberofNamePointers * sizeof(char*));
     uint32_t *PENamePointerTable = malloc(sizeof(uint32_t) * thePEC_FILE->extractedExport_Directory_Table->NumberofNamePointers);
+    printf("Attempting to seek and resolve at address: 0x%.8X\n", thePEC_FILE->extractedExport_Directory_Table->NamePointerRVA);
+    if (thePEC_FILE->extractedExport_Directory_Table->NamePointerRVA == 0){
+        printf("WARNING: Invalid NamePointerRVA address\n");
+        printf("Aborting name array population\n");
+        free(PENamePointerTable);
+        free(thePEC_FILE->Export_Directory_Name_Array);
+        thePEC_FILE->Export_Directory_Name_Array = NULL;
+        return;
+    }
     fseek(thePEC_FILE->RawFile, resolveRVA(thePEC_FILE->SectionTableLinkedList, thePEC_FILE->extractedExport_Directory_Table->NamePointerRVA), SEEK_SET);
     fread(PENamePointerTable, 1, sizeof(uint32_t) * thePEC_FILE->extractedExport_Directory_Table->NumberofNamePointers, thePEC_FILE->RawFile);
     for (int i = 0; i < thePEC_FILE->extractedExport_Directory_Table->NumberofNamePointers; i++){
@@ -166,6 +175,13 @@ void populateOrdinalArray(PEC_FILE *thePEC_FILE){
 
 void populateExportArray(PEC_FILE *thePEC_FILE){
     thePEC_FILE->Export_Address_Array = malloc(thePEC_FILE->extractedExport_Directory_Table->AddressTableEntries * sizeof(uint32_t));
+    if (thePEC_FILE->extractedExport_Directory_Table->ExportAddressTableRVA == 0){
+        printf("WARNING: Invalid ExportAddressTableRVA address\n");
+        printf("Aborting export address array population\n");
+        free(thePEC_FILE->Export_Address_Array);
+        thePEC_FILE->Export_Address_Array = NULL;
+        return;
+    }
     fseek(thePEC_FILE->RawFile, resolveRVA(thePEC_FILE->SectionTableLinkedList, thePEC_FILE->extractedExport_Directory_Table->ExportAddressTableRVA), SEEK_SET);
     fread(thePEC_FILE->Export_Address_Array, 1, thePEC_FILE->extractedExport_Directory_Table->AddressTableEntries * sizeof(uint32_t), thePEC_FILE->RawFile);
 }
