@@ -68,7 +68,7 @@ int main(int argc, char *argv[]){
     printf("Analysing %s\n", argv[1]);
     //The reason this is being allocated with calloc is because there are alot of pointers in this struct and having them already set to 0 makes it way easier then having to initialize all of them all to 0 and makes it break less when a new pointer is added.
     PEC_FILE *thePEC_FILE = (PEC_FILE*)calloc(sizeof(PEC_FILE), 1);
-    thePEC_FILE->RawFile = fopen(argv[1], "r");
+    thePEC_FILE->RawFile = fopen(argv[1], "rb");
     populateDOS_Header(thePEC_FILE);
     populatePE_Header(thePEC_FILE);
     uint16_t magic = 0x0000;
